@@ -35,18 +35,18 @@ else()
         NAMES qgis_core
         HINTS
             "${QGIS_PREFIX_PATH}/lib"
-            /usr/lib
-            /usr/local/lib
-            /usr/lib/x86_64-linux-gnu
-            /usr/lib64
+            /lib
+            /local/lib
+            /lib/x86_64-linux-gnu
+            /lib64
     )
 
     find_path(QGIS_INCLUDE_DIR
         NAMES qgsapplication.h
         HINTS
-            "${QGIS_PREFIX_PATH}/include/qgis"
-            /usr/include/qgis
-            /usr/local/include/qgis
+            "${QGIS_PREFIX_PATH}/include"
+            /include/qgis
+            /local/include/qgis
     )
 
     if(NOT QGIS_CORE_LIBRARY OR NOT QGIS_INCLUDE_DIR)

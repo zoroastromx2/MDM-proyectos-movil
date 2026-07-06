@@ -67,6 +67,54 @@ else()
     message(STATUS "QGIS include dir: ${QGIS_INCLUDE_DIR}")
 endif()
 
+# --- GDAL / OGR ---
+find_package(GDAL QUIET)
+
+if(GDAL_FOUND)
+    message(STATUS "Found GDAL: ${GDAL_VERSION}")
+else()
+    # Fallback for OSGeo4W / manual installations
+    get_filename_component(OSGEO4W_ROOT "${QGIS_PREFIX_PATH}" DIRECTORY)
+
+    find_path(GDAL_INCLUDE_DIR
+        NAMES ogr_api.h
+        HINTS
+            "${QGIS_PREFIX_PATH}/include"
+            "${OSGEO4W_ROOT}/include"
+            "${OSGEO4W_ROOT}/apps/gdal/include"
+            /usr/include
+            /usr/local/include
+    )
+
+    find_library(GDAL_LIBRARY
+        NAMES gdal gdal_i
+        HINTS
+            "${QGIS_PREFIX_PATH}/lib"
+            "${OSGEO4W_ROOT}/lib"
+            "${OSGEO4W_ROOT}/apps/gdal/lib"
+            /usr/lib
+            /usr/local/lib
+            /usr/lib/x86_64-linux-gnu
+            /usr/lib64
+    )
+
+    if(NOT GDAL_INCLUDE_DIR OR NOT GDAL_LIBRARY)
+        message(FATAL_ERROR
+            "Could not find GDAL/OGR. "
+            "Please install GDAL and/or set QGIS_PREFIX_PATH to your QGIS installation prefix."
+        )
+    endif()
+
+    add_library(GDAL::GDAL UNKNOWN IMPORTED)
+    set_target_properties(GDAL::GDAL PROPERTIES
+        IMPORTED_LOCATION "${GDAL_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${GDAL_INCLUDE_DIR}"
+    )
+
+    message(STATUS "Found GDAL include dir: ${GDAL_INCLUDE_DIR}")
+    message(STATUS "Found GDAL library: ${GDAL_LIBRARY}")
+endif()
+
 # --- Sources ---
 set(PROJECT_SOURCES
     main.cpp
@@ -93,15 +141,20 @@ target_link_libraries(MDMProyectosMovil
         Qt${QT_VERSION_MAJOR}::Qml
         Qt${QT_VERSION_MAJOR}::Quick
         ${QGIS_TARGET}
+        GDAL::GDAL
 )
 
 if(Qt${QT_VERSION_MAJOR}Quick_VERSION VERSION_GREATER_EQUAL "6.0")
     target_link_libraries(MDMProyectosMovil PRIVATE Qt6::QuickControls2)
 endif()
 
-# Ensure QGIS include dirs are visible (redundant when using imported targets, but harmless)
+# Ensure include dirs are visible (redundant when using imported targets, but harmless)
 if(QGIS_INCLUDE_DIR)
     target_include_directories(MDMProyectosMovil PRIVATE "${QGIS_INCLUDE_DIR}")
+endif()
+
+if(GDAL_INCLUDE_DIR)
+    target_include_directories(MDMProyectosMovil PRIVATE "${GDAL_INCLUDE_DIR}")
 endif()
 
 install(TARGETS MDMProyectosMovil

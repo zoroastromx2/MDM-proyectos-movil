@@ -26,13 +26,28 @@ endif()
 find_package(QGIS QUIET CONFIG HINTS "${QGIS_PREFIX_PATH}/lib/cmake/QGIS")
 
 if(QGIS_FOUND)
-    # Modern QGIS CMake config provides imported target QGIS::Core
-    set(QGIS_TARGET QGIS::Core)
+    # Modern QGIS CMake config provides imported targets
+    if(TARGET QGIS::Core)
+        set(QGIS_TARGETS QGIS::Core)
+    endif()
+    if(TARGET QGIS::Gui)
+        list(APPEND QGIS_TARGETS QGIS::Gui)
+    endif()
     message(STATUS "Found QGIS via CMake config: ${QGIS_VERSION}")
 else()
     # Fall back to manual search
     find_library(QGIS_CORE_LIBRARY
         NAMES qgis_core
+        HINTS
+            "${QGIS_PREFIX_PATH}/lib"
+            /lib
+            /local/lib
+            /lib/x86_64-linux-gnu
+            /lib64
+    )
+
+    find_library(QGIS_GUI_LIBRARY
+        NAMES qgis_gui
         HINTS
             "${QGIS_PREFIX_PATH}/lib"
             /lib
@@ -62,7 +77,19 @@ else()
         IMPORTED_LOCATION "${QGIS_CORE_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${QGIS_INCLUDE_DIR}"
     )
-    set(QGIS_TARGET QGIS_Core)
+
+    set(QGIS_TARGETS QGIS_Core)
+
+    if(QGIS_GUI_LIBRARY)
+        add_library(QGIS_Gui UNKNOWN IMPORTED)
+        set_target_properties(QGIS_Gui PROPERTIES
+            IMPORTED_LOCATION "${QGIS_GUI_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${QGIS_INCLUDE_DIR}"
+        )
+        list(APPEND QGIS_TARGETS QGIS_Gui)
+        message(STATUS "Found qgis_gui: ${QGIS_GUI_LIBRARY}")
+    endif()
+
     message(STATUS "Found qgis_core: ${QGIS_CORE_LIBRARY}")
     message(STATUS "QGIS include dir: ${QGIS_INCLUDE_DIR}")
 endif()
@@ -74,34 +101,34 @@ if(GDAL_FOUND)
     message(STATUS "Found GDAL: ${GDAL_VERSION}")
 else()
     # Fallback for OSGeo4W / manual installations
-    get_filename_component(OSGEO4W_ROOT "${GDAL_PREFIX_PATH}" DIRECTORY)
+    get_filename_component(OSGEO4W_ROOT "${QGIS_PREFIX_PATH}" DIRECTORY)
 
     find_path(GDAL_INCLUDE_DIR
         NAMES ogr_api.h
         HINTS
-            "${GDAL_PREFIX_PATH}/include"
+            "${QGIS_PREFIX_PATH}/include"
             "${OSGEO4W_ROOT}/include"
-            "${OSGEO4W_ROOT}/apps/gdal-dev/include"
-            /include
-            /local/include
+            "${OSGEO4W_ROOT}/apps/gdal/include"
+            /usr/include
+            /usr/local/include
     )
 
     find_library(GDAL_LIBRARY
         NAMES gdal gdal_i
         HINTS
-            "${GDAL_PREFIX_PATH}/lib"
+            "${QGIS_PREFIX_PATH}/lib"
             "${OSGEO4W_ROOT}/lib"
             "${OSGEO4W_ROOT}/apps/gdal/lib"
-            /lib
-            /local/lib
-            /lib/x86_64-linux-gnu
-            /lib64
+            /usr/lib
+            /usr/local/lib
+            /usr/lib/x86_64-linux-gnu
+            /usr/lib64
     )
 
     if(NOT GDAL_INCLUDE_DIR OR NOT GDAL_LIBRARY)
         message(FATAL_ERROR
             "Could not find GDAL/OGR. "
-            "Please install GDAL and/or set QGIS_GDAL_PATH to your QGIS installation prefix."
+            "Please install GDAL and/or set QGIS_PREFIX_PATH to your QGIS installation prefix."
         )
     endif()
 
@@ -140,7 +167,7 @@ target_link_libraries(MDMProyectosMovil
         Qt${QT_VERSION_MAJOR}::Xml
         Qt${QT_VERSION_MAJOR}::Qml
         Qt${QT_VERSION_MAJOR}::Quick
-        ${QGIS_TARGET}
+        ${QGIS_TARGETS}
         GDAL::GDAL
 )
 

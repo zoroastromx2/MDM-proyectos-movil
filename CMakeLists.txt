@@ -74,34 +74,34 @@ if(GDAL_FOUND)
     message(STATUS "Found GDAL: ${GDAL_VERSION}")
 else()
     # Fallback for OSGeo4W / manual installations
-    get_filename_component(OSGEO4W_ROOT "${QGIS_PREFIX_PATH}" DIRECTORY)
+    get_filename_component(OSGEO4W_ROOT "${GDAL_PREFIX_PATH}" DIRECTORY)
 
     find_path(GDAL_INCLUDE_DIR
         NAMES ogr_api.h
         HINTS
-            "${QGIS_PREFIX_PATH}/include"
+            "${GDAL_PREFIX_PATH}/include"
             "${OSGEO4W_ROOT}/include"
-            "${OSGEO4W_ROOT}/apps/gdal/include"
-            /usr/include
-            /usr/local/include
+            "${OSGEO4W_ROOT}/apps/gdal-dev/include"
+            /include
+            /local/include
     )
 
     find_library(GDAL_LIBRARY
         NAMES gdal gdal_i
         HINTS
-            "${QGIS_PREFIX_PATH}/lib"
+            "${GDAL_PREFIX_PATH}/lib"
             "${OSGEO4W_ROOT}/lib"
             "${OSGEO4W_ROOT}/apps/gdal/lib"
-            /usr/lib
-            /usr/local/lib
-            /usr/lib/x86_64-linux-gnu
-            /usr/lib64
+            /lib
+            /local/lib
+            /lib/x86_64-linux-gnu
+            /lib64
     )
 
     if(NOT GDAL_INCLUDE_DIR OR NOT GDAL_LIBRARY)
         message(FATAL_ERROR
             "Could not find GDAL/OGR. "
-            "Please install GDAL and/or set QGIS_PREFIX_PATH to your QGIS installation prefix."
+            "Please install GDAL and/or set QGIS_GDAL_PATH to your QGIS installation prefix."
         )
     endif()
 

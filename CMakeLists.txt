@@ -14,6 +14,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Xml Qml 
 
 if(Qt${QT_VERSION_MAJOR}Quick_VERSION VERSION_GREATER_EQUAL "6.0")
     find_package(Qt6 REQUIRED COMPONENTS QuickControls2)
+    qt_policy(SET QTP0001 NEW)
 endif()
 
 # --- QGIS ---

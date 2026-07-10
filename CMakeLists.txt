@@ -8,68 +8,83 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# Prefer package config files (ideal when using vcpkg toolchain)
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+
 # --- Qt ---
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Xml Qml Quick)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Xml Qml Quick)
 
-if(Qt${QT_VERSION_MAJOR}Quick_VERSION VERSION_GREATER_EQUAL "6.0")
-    find_package(Qt6 REQUIRED COMPONENTS QuickControls2)
+if(QT_VERSION_MAJOR EQUAL 6)
+    # Needed for qt_add_qml_module default resource prefix behavior
     qt_policy(SET QTP0001 NEW)
+    find_package(Qt6 REQUIRED COMPONENTS QuickControls2)
 endif()
 
 # --- QGIS ---
-# Locate QGIS installation. Users may override QGIS_PREFIX_PATH via -DQGIS_PREFIX_PATH=...
+# User can pass: -DQGIS_PREFIX_PATH=E:/OSGeo4W/apps/qgis
 if(NOT DEFINED QGIS_PREFIX_PATH)
-    set(QGIS_PREFIX_PATH "" CACHE PATH "Path to the QGIS installation prefix (e.g. /usr or /usr/local)")
+    set(QGIS_PREFIX_PATH "E:/OSGeo4W/apps/qgis" CACHE PATH "QGIS installation prefix")
 endif()
 
-# Try to find qgis_core via its CMake config (available in recent QGIS builds)
-find_package(QGIS QUIET CONFIG HINTS "${QGIS_PREFIX_PATH}/lib/cmake/QGIS")
+# Try modern QGIS config package first
+# Common locations:
+#   E:/OSGeo4W/apps/qgis/lib/cmake/QGIS
+#   E:/OSGeo4W/apps/qgis-dev/lib/cmake/QGIS
+find_package(QGIS QUIET CONFIG
+    HINTS
+        "${QGIS_PREFIX_PATH}/lib/cmake/QGIS"
+        "${QGIS_PREFIX_PATH}/cmake"
+)
 
 if(QGIS_FOUND)
-    # Modern QGIS CMake config provides imported targets
+    set(QGIS_TARGETS "")
     if(TARGET QGIS::Core)
-        set(QGIS_TARGETS QGIS::Core)
+        list(APPEND QGIS_TARGETS QGIS::Core)
     endif()
     if(TARGET QGIS::Gui)
         list(APPEND QGIS_TARGETS QGIS::Gui)
     endif()
+
+    if(QGIS_TARGETS STREQUAL "")
+        message(FATAL_ERROR "QGIS found but imported targets QGIS::Core / QGIS::Gui were not provided.")
+    endif()
+
     message(STATUS "Found QGIS via CMake config: ${QGIS_VERSION}")
 else()
-    # Fall back to manual search
+    # Fallback: manual lookup for OSGeo4W-style layout
     find_library(QGIS_CORE_LIBRARY
         NAMES qgis_core
         HINTS
+            "${QGIS_PREFIX_PATH}/bin"
             "${QGIS_PREFIX_PATH}/lib"
-            /lib
-            /local/lib
-            /lib/x86_64-linux-gnu
-            /lib64
+            "E:/OSGeo4W/apps/qgis/bin"
+            "E:/OSGeo4W/apps/qgis/lib"
     )
 
     find_library(QGIS_GUI_LIBRARY
         NAMES qgis_gui
         HINTS
+            "${QGIS_PREFIX_PATH}/bin"
             "${QGIS_PREFIX_PATH}/lib"
-            /lib
-            /local/lib
-            /lib/x86_64-linux-gnu
-            /lib64
+            "E:/OSGeo4W/apps/qgis/bin"
+            "E:/OSGeo4W/apps/qgis/lib"
     )
 
     find_path(QGIS_INCLUDE_DIR
         NAMES qgsapplication.h
         HINTS
             "${QGIS_PREFIX_PATH}/include"
-            /include/qgis
-            /local/include/qgis
+            "${QGIS_PREFIX_PATH}/include/qgis"
+            "E:/OSGeo4W/apps/qgis/include"
+            "E:/OSGeo4W/apps/qgis/include/qgis"
     )
 
     if(NOT QGIS_CORE_LIBRARY OR NOT QGIS_INCLUDE_DIR)
         message(FATAL_ERROR
-            "Could not find qgis_core. "
-            "Please set QGIS_PREFIX_PATH to your QGIS installation prefix, e.g.:\n"
-            "  cmake -DQGIS_PREFIX_PATH=/usr .."
+            "Could not find QGIS core/include.\n"
+            "Set QGIS_PREFIX_PATH, e.g.:\n"
+            "  cmake -DQGIS_PREFIX_PATH=E:/OSGeo4W/apps/qgis .."
         )
     endif()
 
@@ -78,7 +93,6 @@ else()
         IMPORTED_LOCATION "${QGIS_CORE_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${QGIS_INCLUDE_DIR}"
     )
-
     set(QGIS_TARGETS QGIS_Core)
 
     if(QGIS_GUI_LIBRARY)
@@ -88,59 +102,62 @@ else()
             INTERFACE_INCLUDE_DIRECTORIES "${QGIS_INCLUDE_DIR}"
         )
         list(APPEND QGIS_TARGETS QGIS_Gui)
-        message(STATUS "Found qgis_gui: ${QGIS_GUI_LIBRARY}")
     endif()
 
     message(STATUS "Found qgis_core: ${QGIS_CORE_LIBRARY}")
-    message(STATUS "QGIS include dir: ${QGIS_INCLUDE_DIR}")
+    message(STATUS "Found qgis_gui : ${QGIS_GUI_LIBRARY}")
+    message(STATUS "QGIS include   : ${QGIS_INCLUDE_DIR}")
 endif()
 
 # --- GDAL / OGR ---
+# Try package first (vcpkg or system package)
 find_package(GDAL QUIET)
 
-if(GDAL_FOUND)
-    message(STATUS "Found GDAL: ${GDAL_VERSION}")
-else()
-    # Fallback for OSGeo4W / manual installations
-    get_filename_component(OSGEO4W_ROOT "${GDAL_PREFIX_PATH}" DIRECTORY)
+if(NOT GDAL_FOUND)
+    # Fallback to OSGeo4W-like layout derived from QGIS_PREFIX_PATH
+    # Example: QGIS_PREFIX_PATH=E:/OSGeo4W/apps/qgis -> OSGEO4W_ROOT=E:/OSGeo4W
+    get_filename_component(_qgis_apps_dir "${QGIS_PREFIX_PATH}" DIRECTORY) # .../apps
+    get_filename_component(OSGEO4W_ROOT "${_qgis_apps_dir}" DIRECTORY)      # .../
 
     find_path(GDAL_INCLUDE_DIR
         NAMES ogr_api.h
         HINTS
-            "${GDAL_PREFIX_PATH}/include"
             "${OSGEO4W_ROOT}/include"
             "${OSGEO4W_ROOT}/apps/gdal/include"
-            /include
-            /local/include
+            "${QGIS_PREFIX_PATH}/include"
     )
 
     find_library(GDAL_LIBRARY
-        NAMES gdal gdal_i
+        NAMES gdal gdal_i gdal312 gdal313 gdal311 gdal310 gdal309
         HINTS
-            "${GDAL_PREFIX_PATH}/lib"
+            "${OSGEO4W_ROOT}/bin"
             "${OSGEO4W_ROOT}/lib"
+            "${OSGEO4W_ROOT}/apps/gdal/bin"
             "${OSGEO4W_ROOT}/apps/gdal/lib"
-            /lib
-            /local/lib
-            /lib/x86_64-linux-gnu
-            /lib64
+            "${QGIS_PREFIX_PATH}/bin"
+            "${QGIS_PREFIX_PATH}/lib"
     )
 
     if(NOT GDAL_INCLUDE_DIR OR NOT GDAL_LIBRARY)
         message(FATAL_ERROR
-            "Could not find GDAL/OGR. "
-            "Please install GDAL and/or set GDAL_PREFIX_PATH to your GDAL installation prefix."
+            "Could not find GDAL/OGR.\n"
+            "Install GDAL in OSGeo4W or provide proper paths."
         )
     endif()
 
-    add_library(GDAL::GDAL UNKNOWN IMPORTED)
-    set_target_properties(GDAL::GDAL PROPERTIES
-        IMPORTED_LOCATION "${GDAL_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${GDAL_INCLUDE_DIR}"
-    )
+    # Create imported target only if GDAL::GDAL does not exist yet
+    if(NOT TARGET GDAL::GDAL)
+        add_library(GDAL::GDAL UNKNOWN IMPORTED)
+        set_target_properties(GDAL::GDAL PROPERTIES
+            IMPORTED_LOCATION "${GDAL_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${GDAL_INCLUDE_DIR}"
+        )
+    endif()
 
-    message(STATUS "Found GDAL include dir: ${GDAL_INCLUDE_DIR}")
+    message(STATUS "Found GDAL include: ${GDAL_INCLUDE_DIR}")
     message(STATUS "Found GDAL library: ${GDAL_LIBRARY}")
+else()
+    message(STATUS "Found GDAL via package config/find module.")
 endif()
 
 # --- Sources ---
@@ -172,19 +189,20 @@ target_link_libraries(MDMProyectosMovil
         GDAL::GDAL
 )
 
-if(Qt${QT_VERSION_MAJOR}Quick_VERSION VERSION_GREATER_EQUAL "6.0")
+if(QT_VERSION_MAJOR EQUAL 6)
     target_link_libraries(MDMProyectosMovil PRIVATE Qt6::QuickControls2)
 endif()
 
-# Ensure include dirs are visible (redundant when using imported targets, but harmless)
-if(QGIS_INCLUDE_DIR)
+# Extra include visibility (harmless if already propagated by imported targets)
+if(DEFINED QGIS_INCLUDE_DIR AND QGIS_INCLUDE_DIR)
     target_include_directories(MDMProyectosMovil PRIVATE "${QGIS_INCLUDE_DIR}")
 endif()
 
-if(GDAL_INCLUDE_DIR)
+if(DEFINED GDAL_INCLUDE_DIR AND GDAL_INCLUDE_DIR)
     target_include_directories(MDMProyectosMovil PRIVATE "${GDAL_INCLUDE_DIR}")
 endif()
 
+include(GNUInstallDirs)
 install(TARGETS MDMProyectosMovil
     BUNDLE DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

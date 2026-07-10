@@ -1,0 +1,11 @@
+{
+  "name": "mdm-proyectos-movil",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "qtbase",
+    "qtdeclarative",
+    "qt5compat",
+    "openssl",
+    "zlib"
+  ]
+}

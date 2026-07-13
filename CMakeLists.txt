@@ -18,7 +18,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Xml Qml 
 if(QT_VERSION_MAJOR EQUAL 6)
     # Needed for qt_add_qml_module default resource prefix behavior
     qt_policy(SET QTP0001 NEW)
-    find_package(Qt6 REQUIRED COMPONENTS QuickControls2)
+    find_package(Qt6 REQUIRED COMPONENTS QuickControls2 Dialogs)
 endif()
 
 # --- QGIS ---
@@ -190,7 +190,7 @@ target_link_libraries(MDMProyectosMovil
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
-    target_link_libraries(MDMProyectosMovil PRIVATE Qt6::QuickControls2)
+    target_link_libraries(MDMProyectosMovil PRIVATE Qt6::QuickControls2 Qt6::Dialogs)
 endif()
 
 # Extra include visibility (harmless if already propagated by imported targets)

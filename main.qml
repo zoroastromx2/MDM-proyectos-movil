@@ -1,7 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import Qt.labs.platform 1.1 as Platform
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: root
@@ -47,23 +47,23 @@ ApplicationWindow {
     }
 
     // -----------------------------------------------------------------------
-    // Folder dialogs (Qt.labs.platform – available in Qt 5.8+)
+    // Folder dialogs (QtQuick.Dialogs – nativo Qt 6, sin dependencia de Qt6Multimedia)
     // -----------------------------------------------------------------------
-    Platform.FolderDialog {
+    FolderDialog {
         id: shapeFolderDialog
         title: qsTr("Selecciona la carpeta de Shapefiles")
         onAccepted: {
-            root.shapeFolderPath = folder.toString()
-            shapePathLabel.text  = root.toLocalPath(folder.toString())
+            root.shapeFolderPath = selectedFolder.toString()
+            shapePathLabel.text  = root.toLocalPath(selectedFolder.toString())
         }
     }
 
-    Platform.FolderDialog {
+    FolderDialog {
         id: styleFolderDialog
         title: qsTr("Selecciona la carpeta de Estilos QML")
         onAccepted: {
-            root.styleFolderPath = folder.toString()
-            stylePathLabel.text  = root.toLocalPath(folder.toString())
+            root.styleFolderPath = selectedFolder.toString()
+            stylePathLabel.text  = root.toLocalPath(selectedFolder.toString())
         }
     }
 

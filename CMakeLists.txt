@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.19)
 project(MDMProyectosMovil VERSION 1.0 LANGUAGES CXX)
 
+# Force Qt to be found from the Qt installer prefix, not from vcpkg
+if(DEFINED CMAKE_PREFIX_PATH)
+    set(Qt6_DIR "${CMAKE_PREFIX_PATH}/lib/cmake/Qt6" CACHE PATH "" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
